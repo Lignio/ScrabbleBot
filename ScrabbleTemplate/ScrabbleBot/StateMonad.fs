@@ -1,4 +1,4 @@
-﻿// Insert your StateMonad.fs from Assignment 6 here. All modules must be internal.
+﻿// Insert your StateMonad.fs from Assignment 6 here. All modules must be internal. DONE
 
 
 module internal StateMonad
@@ -48,13 +48,23 @@ module internal StateMonad
     let push : SM<unit> = 
         S (fun s -> Success ((), {s with vars = Map.empty :: s.vars}))
 
-    let pop : SM<unit> = failwith "Not implemented"      
+    let pop : SM<unit> =
+        S (fun s -> Success ((), {s with vars = List.tail s.vars}))
 
-    let wordLength : SM<int> = failwith "Not implemented"      
+    let wordLength : SM<int> = 
+        S (fun s -> Success (List.length s.word, s))
+      
+    let characterValue (pos : int) : SM<char> = 
+        S (fun s -> 
+            match List.tryItem pos s.word with
+                | Some (c, _) -> Success (c, s)
+                | None -> Failure (IndexOutOfBounds pos))     
 
-    let characterValue (pos : int) : SM<char> = failwith "Not implemented"      
-
-    let pointValue (pos : int) : SM<int> = failwith "Not implemented"      
+    let pointValue (pos : int) : SM<int> = 
+        S (fun s -> 
+            match List.tryItem pos s.word with
+                | Some (_, v) -> Success (v, s)
+                | None -> Failure (IndexOutOfBounds pos))    
 
     let lookup (x : string) : SM<int> = 
         let rec aux =
@@ -70,5 +80,5 @@ module internal StateMonad
               | Some v -> Success (v, s)
               | None   -> Failure (VarNotFound x))
 
-    let declare (var : string) : SM<unit> = failwith "Not implemented"   
-    let update (var : string) (value : int) : SM<unit> = failwith "Not implemented"      
+    let declare (var : string) : SM<unit> = failwith "Not implemented d"   
+    let update (var : string) (value : int) : SM<unit> = failwith "Not implemented u"       
