@@ -29,8 +29,18 @@ let rec lookup a = function
         | Some x -> lookup (a.Remove(0,1)) x
  
 
+let step (a:char) = function
+        |Leaf b -> None
+        |Node (b, m)->
+            match Map.tryFind a m with
+            | None ->   None
+            | Some x ->
+                match x with
+                |Leaf b -> Some (b, x)
+                |Node (b, _) -> Some(b, x)
+            
+            
 //printf "%A " (empty () |> insert "HE" |> insert "HELLO" );;
-
 
 //printfn "%A" (lookup "HE" (empty () |> insert "HELLO" |> insert "HE"));;
 printfn "%A" (lookup "HE" (empty () |> insert "HE" |> insert "HELLO"));;
