@@ -1,0 +1,13 @@
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\bin\Debug\net7.0\ScrabbleBot.deps.json
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\bin\Debug\net7.0\ScrabbleBot.dll
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\bin\Debug\net7.0\ScrabbleBot.pdb
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\bin\Debug\net7.0\ScrabbleUtil.dll
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\obj\Debug\net7.0\ScrabbleBot.fsproj.AssemblyReference.cache
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\obj\Debug\net7.0\ScrabbleBot.AssemblyInfoInputs.cache
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\obj\Debug\net7.0\ScrabbleBot.AssemblyInfo.fs
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\obj\Debug\net7.0\ScrabbleBot.fsproj.CoreCompileInputs.cache
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\obj\Debug\net7.0\ScrabbleBot.fsproj.CopyComplete
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\obj\Debug\net7.0\ScrabbleBot.dll
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\obj\Debug\net7.0\refint\ScrabbleBot.dll
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\obj\Debug\net7.0\ScrabbleBot.pdb
+C:\Users\baldu\Documents\ScrabbleBot\ScrabbleTemplate\ScrabbleBot\obj\Debug\net7.0\ref\ScrabbleBot.dll
