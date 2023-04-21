@@ -13,7 +13,6 @@ let spawnMultiples name dict bot =
         function 
         | 0 -> []
         | x -> (sprintf "%s%d" name x, dict, bot)::aux (x - 1)
-   
     aux >> List.rev
 
 [<EntryPoint>]

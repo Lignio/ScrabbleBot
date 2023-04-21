@@ -35,6 +35,46 @@ module RegEx =
         hand |>
         MultiSet.fold (fun _ x i -> forcePrint (sprintf "%d -> (%A, %d)\n" x (Map.find x pieces) i)) ()
 
+module Bot =
+    type originDirection =
+        | right = 0
+        | down = 1
+        | left = 2
+        | up = 3
+        
+  
+    
+    let addToPossiblePlacements (possiblePlacement : Map<coord,originDirection>) (neighborList : Map<originDirection, (bool*coord)>) = Map.fold (fun acc key value -> if fst value = false then Map.add (snd value) key acc else acc) possiblePlacement neighborList
+    let neighborHasValue (boardMap: Map<coord, char>) (location :coord) (neighbor : originDirection) =
+        match neighbor with
+            | originDirection.right ->
+                match boardMap.TryFind ((fst location) + 1 , snd location) with
+                    | None -> (false, ((fst location) + 1 , snd location))
+                    | Some x -> (true, ((fst location) + 1 , snd location))
+            | originDirection.left ->
+               match boardMap.TryFind ((fst location) - 1 , snd location) with
+                    | None -> (false, ((fst location) - 1 , snd location))
+                    | Some x-> (true, ((fst location) - 1 , snd location))
+            | originDirection.up ->
+               match boardMap.TryFind (fst location , (snd location) + 1) with
+                    | None -> (false, (fst location , (snd location) + 1))
+                    | Some x -> (true, (fst location , (snd location) + 1))
+            | originDirection.down ->
+               match boardMap.TryFind (fst location,(snd location) - 1) with
+                    | None -> (false, (fst location , (snd location) - 1))
+                    | Some x -> (true, (fst location , (snd location) - 1))
+                                                                                                                        
+    let trueNeighborList (boardMap: Map<coord, char>) (location : coord) (neighborMap : Map<originDirection,(bool*coord)>) = neighborMap |> Map.add originDirection.right (neighborHasValue boardMap location originDirection.right) |>
+                                                                                                                             Map.add originDirection.down (neighborHasValue boardMap location originDirection.down) |>
+                                                                                                                             Map.add originDirection.left (neighborHasValue boardMap location originDirection.left) |>
+                                                                                                                             Map.add originDirection.up (neighborHasValue boardMap location originDirection.up)
+    
+    let neighborList (boardMap: Map<coord, char>) (location : coord) = trueNeighborList boardMap location Map.empty
+     
+    let possiblePlacements (boardMap: Map<coord, char>) = Map.fold (fun acc key value -> addToPossiblePlacements acc (neighborList boardMap key)) Map.empty boardMap
+   
+                    
+                
 module State = 
     // Make sure to keep your state localised in this module. It makes your life a whole lot easier.
     // Currently, it only keeps track of your hand, your player numer, your board, and your dictionary,
@@ -81,8 +121,9 @@ module Scrabble =
             match msg with
             | RCM (CMPlaySuccess(ms, points, newPieces)) ->
                 (* Successful play by you. Update your state (remove old tiles, add the new ones, change turn, etc) *)
+                let addToHand (a : (uint32 * uint32) list) (b : State.state) = a |> List.fold (fun acc value -> MultiSet.add (fst value) (snd value) acc) b.hand
                 let addToMap (a : (coord * (uint32 * (char * int))) list) (b : State.state) = List.fold (fun acc value -> Map.add (fst value) (snd value |> snd |> fst) acc) b.boardMap a
-                let st' = State.mkState st.board st.dict st.playerNumber st.hand (addToMap ms st) // This state needs to be update
+                let st' = State.mkState st.board st.dict st.playerNumber (addToHand newPieces st) (addToMap ms st) // This state needs to be update
                 aux st'
             | RCM (CMPlayed (pid, ms, points)) ->
                 (* Successful play by other player. Update your state *)
