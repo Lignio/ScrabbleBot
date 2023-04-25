@@ -175,16 +175,16 @@ module Bot =
         | originDirection.right -> (coord((fst possiblePlacement|> fst)+1 , (fst possiblePlacement |> snd)),Map.find ((fst possiblePlacement|> fst)+1 , (fst possiblePlacement |> snd)) boardMap)
         | originDirection.up -> (coord((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)+1) ,Map.find ((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)+1) boardMap)
         | originDirection.down -> (coord((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)-1),Map.find ((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)-1) boardMap)
-    //let rec findMoveProtoReal (possiblePlacement : (coord*originDirection)) (st : State.state) (myWord : (coord*char) list) =
-      //  match myWord with
-        //    | myWord when Dictionary.lookup (myWord |> List.map snd |> List.toArray |> System.String) st.dict = true -> myWord
-          //  | myWord when myWord = List.empty -> 
-            //    match Dictionary.step (getParent possiblePlacement st.boardMap |> snd) st.dict with
-              //      | None -> List.empty 
-                //    | Some x -> findMoveProtoReal possiblePlacement (State.mkState st.board (snd x) st.playerNumber st.hand st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
-            //| myWord ->
-              //  match Dictionary.step (getParent possiblePlacement st.boardMap |> snd) st.dict with
-                //    | None -> List.empty
-                  //  | Some x -> findMoveProtoReal possiblePlacement (State.mkState st.board (snd x) st.playerNumber (MultiSet.remove (getParent possiblePlacement st.boardMap |> snd) 1u st.hand) st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
+    (*let rec findMoveProtoReal (possiblePlacement : (coord*originDirection)) (st : State.state) (myWord : (coord*char) list) =
+        match myWord with
+            | myWord when Dictionary.lookup (myWord |> List.map snd |> List.toArray |> System.String) st.dict = true -> myWord
+            | myWord when myWord = List.empty -> 
+               match Dictionary.step (getParent possiblePlacement st.boardMap |> snd) st.dict with
+                    | None -> List.empty 
+                    | Some x -> findMoveProtoReal possiblePlacement (State.mkState st.board (snd x) st.playerNumber st.hand st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
+            | myWord ->
+               match Dictionary.step (getParent possiblePlacement st.boardMap |> snd) st.dict with
+                    | None -> List.empty
+                    | Some x -> findMoveProtoReal possiblePlacement (State.mkState st.board (snd x) st.playerNumber (MultiSet.remove (getParent possiblePlacement st.boardMap |> snd) 1u st.hand) st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
         
-    //let findMoveProto (possiblePlacement : (coord*originDirection)) (st : State.state) = findMoveProtoReal possiblePlacement st List.empty
+    let findMoveProto (possiblePlacement : (coord*originDirection)) (st : State.state) = findMoveProtoReal possiblePlacement st List.empty *)

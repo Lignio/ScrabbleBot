@@ -1,13 +1,16 @@
 ﻿// Learn more about F# at http://fsharp.org
 
-module Program 
+module Program
+
+    open ScrabbleUtil
+ 
     let time f =
         let start = System.DateTime.Now
         let res = f ()
         let finish = System.DateTime.Now
         (res, finish - start)
 
-    let readLines filePath = System.IO.File.ReadLines("..\\ScrabbleTemplate\\ScrabbleBot\\")
+    let readLines filePath = System.IO.File.ReadLines(filePath)
 
     let spawnMultiples name dict bot =
         let rec aux =
@@ -35,7 +38,7 @@ module Program
     //    let board      = ScrabbleUtil.HoleBoard.holeBoard ()
     //    let board      = ScrabbleUtil.InfiniteHoleBoard.infiniteHoleBoard ()
 
-        let words     = readLines "../../../Dictionaries/English.txt"
+        let words     = readLines "ScrabbleTemplate/Dictionaries/English.txt"
 
         let handSize   = 7u
         let timeout    = None
@@ -49,11 +52,11 @@ module Program
             //None
             
         // Uncomment this line to call your client
-        // let players    = [("Your name here", YourClientName.Scrabble.startGame)]
         let (dictionary, time) =
             time (fun () -> ScrabbleUtil.Dictionary.mkDict words dictAPI)
+        let players    = [("Your name here", dictionary, ScrapBot.Scrabble.startGame)]
 
-        let players = spawnMultiples "OxyphenButazone" dictionary Oxyphenbutazone.Scrabble.startGame 2
+        //let players = spawnMultiples "OxyphenButazone" dictionary Oxyphenbutazone.Scrabble.startGame 2
 
 
         do ScrabbleServer.Comm.startGame 

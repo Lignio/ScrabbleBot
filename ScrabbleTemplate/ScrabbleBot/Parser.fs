@@ -123,4 +123,5 @@
 
     let parseBoardProg _ = failwith "not implemented"
 
-    let mkBoard (bp : boardProg) : board = failwith "not implemented" 
+   // Default (unusable) board in case you are not implementing a parser for the DSL.
+    let mkBoard : boardProg -> board = fun _ -> {center = (0,0); defaultSquare = Map.empty; squares = fun _ -> Success (Some Map.empty)}
