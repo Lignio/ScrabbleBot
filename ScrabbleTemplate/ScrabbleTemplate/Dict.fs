@@ -1,4 +1,4 @@
-module internal Dictionary
+module internal TriDictionary
 
 type Dict = 
     | Leaf of bool
@@ -40,12 +40,3 @@ let step (a:char) = function
                 |Node (b, _) -> Some(b, x)
             
             
-//printf "%A " (empty () |> insert "HE" |> insert "HELLO" );;
-
-//printfn "%A" (lookup "HE" (empty () |> insert "HELLO" |> insert "HE"));;
-printfn "%A" (lookup "HE" (empty () |> insert "HE" |> insert "HELLO"));;
-
-//printfn "%A " (lookup "HELLO" (empty () |> insert "HELLO"));;
-//let step 
-
-//printfn "%A " (lookup "HELLO");;

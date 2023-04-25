@@ -1,4 +1,4 @@
-module internal Dictionary
+module internal TriDictionary
 
 type Dict
 
