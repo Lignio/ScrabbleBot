@@ -1,32 +1,6 @@
 module Util
-let CharToId (c : char) =
-    match c with
-    |'a' -> 1u
-    |'b' -> 2u
-    |'c' -> 3u
-    |'d' -> 4u
-    |'e' -> 5u
-    |'f' -> 6u
-    |'g' -> 7u
-    |'h' -> 8u
-    |'i' -> 9u
-    |'j' -> 10u
-    |'k' -> 11u
-    |'l' -> 12u
-    |'m' -> 13u
-    |'n' -> 14u
-    |'o' -> 15u
-    |'p' -> 16u
-    |'q' -> 17u
-    |'r' -> 18u
-    |'s' -> 19u
-    |'t' -> 20u
-    |'u' -> 21u
-    |'v' -> 22u
-    |'w' -> 23u
-    |'x' -> 24u
-    |'y' -> 25u
-    |'z' -> 26u
+let CharToId (c : char) = (uint32)(c - 'a')+1u
+   
 
 let IdToChar (i : uint32) =
     match i with

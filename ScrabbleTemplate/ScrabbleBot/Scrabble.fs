@@ -1,6 +1,7 @@
 ﻿namespace ScrapBot
 
 open System.Collections.Generic
+open Microsoft.FSharp.Collections
 open ScrabbleUtil
 open ScrabbleUtil.ServerCommunication
 
@@ -165,9 +166,6 @@ module Bot =
     let neighborList (boardMap: Map<coord, char>) (location : coord) = trueNeighborList boardMap location Map.empty
      
     let possiblePlacements (boardMap: Map<coord, char>) = Map.fold (fun acc key value -> addToPossiblePlacements acc (neighborList boardMap key)) Map.empty boardMap
-   
-    let findMovesProto (possiblePlacements : Map<coord,originDirection>) (boardMap : Map<coord, char>) (hand : MultiSet.MultiSet<uint32>) =
-        Map.fold (fun acc key value -> Map.add key value acc) Map.empty possiblePlacements
     
     let getParent (possiblePlacement: (coord*originDirection)) (boardMap : Map<coord, char>) =
         match snd possiblePlacement with
@@ -175,16 +173,24 @@ module Bot =
         | originDirection.right -> (coord((fst possiblePlacement|> fst)+1 , (fst possiblePlacement |> snd)),Map.find ((fst possiblePlacement|> fst)+1 , (fst possiblePlacement |> snd)) boardMap)
         | originDirection.up -> (coord((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)+1) ,Map.find ((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)+1) boardMap)
         | originDirection.down -> (coord((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)-1),Map.find ((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)-1) boardMap)
-    let rec findMoveProtoReal (possiblePlacement : (coord*originDirection)) (st : State.state) (myWord : (coord*char) list) =
+    let rec findMoveReal (possiblePlacement : (coord*originDirection)) (st : State.state) (myWord : (coord*char) list) =
         match myWord with
             | myWord when Dictionary.lookup (myWord |> List.map snd |> List.toArray |> System.String) st.dict = true -> myWord
             | myWord when myWord = List.empty -> 
                 match Dictionary.step (getParent possiblePlacement st.boardMap |> snd) st.dict with
                     | None -> List.empty 
-                    | Some x -> findMoveProtoReal possiblePlacement (State.mkState st.board (snd x) st.playerNumber st.hand st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
-            | myWord ->
-                match Dictionary.step (getParent possiblePlacement st.boardMap |> snd) st.dict with
+                    | Some x -> findMoveReal possiblePlacement (State.mkState st.board (snd x) st.playerNumber st.hand st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
+            | myWord -> MultiSet.fold (fun acc e x ->
+                match Dictionary.step (Util.IdToChar e) st.dict with
                     | None -> List.empty
-                    | Some x -> findMoveProtoReal possiblePlacement (State.mkState st.board (snd x) st.playerNumber (MultiSet.remove (getParent possiblePlacement st.boardMap |> snd |> Util.CharToId) 1u st.hand) st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
+                    | Some (false, x) -> findMoveReal possiblePlacement (State.mkState st.board x st.playerNumber (MultiSet.remove (getParent possiblePlacement st.boardMap |> snd |> Util.CharToId) 1u st.hand) st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
+                    | Some (true, x) -> myWord //findMoveReal possiblePlacement (State.mkState st.board x st.playerNumber (MultiSet.remove (getParent possiblePlacement st.boardMap |> snd |> Util.CharToId) 1u st.hand) st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
+                        ) myWord st.hand
+    let findMove (possiblePlacement : (coord*originDirection)) (st : State.state) = findMoveReal possiblePlacement st List.empty
+    
+    let findMoves (possiblePlacements : Map<coord,originDirection>) (st : State.state) =
+        Map.fold (fun acc key value -> (findMove (key,value) st) :: acc) List.empty possiblePlacements
         
-    let findMoveProto (possiblePlacement : (coord*originDirection)) (st : State.state) = findMoveProtoReal possiblePlacement st List.empty
+    let chooseMove (moves : (coord * char) list list) = List.head moves 
+    
+    //forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value>

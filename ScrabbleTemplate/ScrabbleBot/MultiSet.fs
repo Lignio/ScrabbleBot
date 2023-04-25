@@ -1,27 +1,28 @@
-﻿module internal MultiSet
+﻿module MultiSet
 
-// For more information see https://aka.ms/fsharp-console-apps
-//printfn "Hello from F#"
+    type MultiSet<'a when 'a : comparison> = M of (Map<'a, uint32>)
 
-    type MultiSet<'a when 'a: comparison> = MSet of Map<'a, uint32>
+    let empty: MultiSet<'a>  = M Map.empty<'a, uint32>
 
-    let empty = MSet Map.empty
+    let isEmpty (M s) = Map.isEmpty s
 
-    let isEmpty (MSet a) = Map.isEmpty a 
+    let size (M s) = Map.fold (fun acc key value-> acc + value) 0u s
 
-    let size (MSet a)  =  Map.fold (fun acc k v -> acc + v) 0u a
+    let contains a (M s) = Map.containsKey a s
 
-    let contains k (MSet a) = Map.containsKey k a
-
-    let numItems a (MSet s) = Map.tryFind a s |> Option.defaultValue 0u
-
-    let add a n (MSet s) = MSet (Map.add a ((numItems a (MSet s)) + n) s) 
-
-    let addSingle a (MSet s) = MSet (Map.add a ((numItems a (MSet s)) + 1u) s)
-
-    let remove a n (MSet s) = 
-        if (numItems a (MSet s) - uint32(n)) < 0u then MSet (Map.remove a s) 
-        else MSet (Map.add a (((numItems a (MSet s)) - n)) s)
-
-    let fold : ('b -> 'a ->uint32 ->'b) -> 'b-> MultiSet<'a> -> 'b = fun _ _ _ -> failwith "not implemented"
+    let numItems a (M s) =
+        match Map.tryFind a s with
+        | None -> 0u
+        | Some(value) -> value
     
+    let add a n (M s) =M  (Map.add a ((numItems a (M s)) + n) s)
+
+    let addSingle a (M s) = M (Map.add a ((numItems a (M s) + 1u)) s)
+
+    let remove a n (M s) = if (numItems a (M s)) > n then (M (Map.add a (numItems a (M s) - n) s)) else (M (Map.remove a s))
+
+    let removeSingle a (M s) = if (numItems a (M s)) > 0u then (M (Map.add a (numItems a (M s) - 1u) s)) else (M (Map.remove a s))
+
+    let fold (f: 'a -> 'b -> uint32 -> 'a) acc (M s) = Map.fold(f) acc s
+
+    let foldBack (f: 'a -> 'uint32 -> 'b -> 'b) (M s) acc  = Map.foldBack(f) s acc
