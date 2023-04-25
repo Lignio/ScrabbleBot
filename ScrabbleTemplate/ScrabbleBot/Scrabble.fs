@@ -1,11 +1,13 @@
-﻿namespace YourClientName
+﻿namespace ScrapBot
 
+open System.Collections.Generic
 open ScrabbleUtil
 open ScrabbleUtil.ServerCommunication
 
 open System.IO
 
 open ScrabbleUtil.DebugPrint
+open StateMonad
 
 // The RegEx module is only used to parse human input. It is not used for the final product.
 
@@ -35,46 +37,7 @@ module RegEx =
         hand |>
         MultiSet.fold (fun _ x i -> forcePrint (sprintf "%d -> (%A, %d)\n" x (Map.find x pieces) i)) ()
 
-module Bot =
-    type originDirection =
-        | right = 0
-        | down = 1
-        | left = 2
-        | up = 3
-        
-  
-    
-    let addToPossiblePlacements (possiblePlacement : Map<coord,originDirection>) (neighborList : Map<originDirection, (bool*coord)>) = Map.fold (fun acc key value -> if fst value = false then Map.add (snd value) key acc else acc) possiblePlacement neighborList
-    let neighborHasValue (boardMap: Map<coord, char>) (location :coord) (neighbor : originDirection) =
-        match neighbor with
-            | originDirection.right ->
-                match boardMap.TryFind ((fst location) + 1 , snd location) with
-                    | None -> (false, ((fst location) + 1 , snd location))
-                    | Some x -> (true, ((fst location) + 1 , snd location))
-            | originDirection.left ->
-               match boardMap.TryFind ((fst location) - 1 , snd location) with
-                    | None -> (false, ((fst location) - 1 , snd location))
-                    | Some x-> (true, ((fst location) - 1 , snd location))
-            | originDirection.up ->
-               match boardMap.TryFind (fst location , (snd location) + 1) with
-                    | None -> (false, (fst location , (snd location) + 1))
-                    | Some x -> (true, (fst location , (snd location) + 1))
-            | originDirection.down ->
-               match boardMap.TryFind (fst location,(snd location) - 1) with
-                    | None -> (false, (fst location , (snd location) - 1))
-                    | Some x -> (true, (fst location , (snd location) - 1))
-                                                                                                                        
-    let trueNeighborList (boardMap: Map<coord, char>) (location : coord) (neighborMap : Map<originDirection,(bool*coord)>) = neighborMap |> Map.add originDirection.right (neighborHasValue boardMap location originDirection.right) |>
-                                                                                                                             Map.add originDirection.down (neighborHasValue boardMap location originDirection.down) |>
-                                                                                                                             Map.add originDirection.left (neighborHasValue boardMap location originDirection.left) |>
-                                                                                                                             Map.add originDirection.up (neighborHasValue boardMap location originDirection.up)
-    
-    let neighborList (boardMap: Map<coord, char>) (location : coord) = trueNeighborList boardMap location Map.empty
-     
-    let possiblePlacements (boardMap: Map<coord, char>) = Map.fold (fun acc key value -> addToPossiblePlacements acc (neighborList boardMap key)) Map.empty boardMap
-   
-                    
-                
+
 module State = 
     // Make sure to keep your state localised in this module. It makes your life a whole lot easier.
     // Currently, it only keeps track of your hand, your player numer, your board, and your dictionary,
@@ -84,7 +47,7 @@ module State =
  
     type state = {
         board         : Parser.board
-        dict          : ScrabbleUtil.Dictionary.Dict
+        dict          : Dictionary.Dict
         playerNumber  : uint32
         hand          : MultiSet.MultiSet<uint32>
         boardMap      : Map<coord, char>
@@ -166,4 +129,62 @@ module Scrabble =
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
 
         fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet Map.empty)
+    
+module Bot =
+    type originDirection =
+        | right = 0
+        | down = 1
+        | left = 2
+        | up = 3
         
+    let addToPossiblePlacements (possiblePlacement : Map<coord,originDirection>) (neighborList : Map<originDirection, (bool*coord)>) = Map.fold (fun acc key value -> if fst value = false then Map.add (snd value) key acc else acc) possiblePlacement neighborList
+    let neighborHasValue (boardMap: Map<coord, char>) (location :coord) (neighbor : originDirection) =
+        match neighbor with
+            | originDirection.right ->
+                match boardMap.TryFind ((fst location) + 1 , snd location) with
+                    | None -> (false, ((fst location) + 1 , snd location))
+                    | Some x -> (true, ((fst location) + 1 , snd location))
+            | originDirection.left ->
+               match boardMap.TryFind ((fst location) - 1 , snd location) with
+                    | None -> (false, ((fst location) - 1 , snd location))
+                    | Some x-> (true, ((fst location) - 1 , snd location))
+            | originDirection.up ->
+               match boardMap.TryFind (fst location , (snd location) + 1) with
+                    | None -> (false, (fst location , (snd location) + 1))
+                    | Some x -> (true, (fst location , (snd location) + 1))
+            | originDirection.down ->
+               match boardMap.TryFind (fst location,(snd location) - 1) with
+                    | None -> (false, (fst location , (snd location) - 1))
+                    | Some x -> (true, (fst location , (snd location) - 1))
+                                                                                                                        
+    let trueNeighborList (boardMap: Map<coord, char>) (location : coord) (neighborMap : Map<originDirection,(bool*coord)>) = neighborMap |> Map.add originDirection.right (neighborHasValue boardMap location originDirection.right) |>
+                                                                                                                             Map.add originDirection.down (neighborHasValue boardMap location originDirection.down) |>
+                                                                                                                             Map.add originDirection.left (neighborHasValue boardMap location originDirection.left) |>
+                                                                                                                             Map.add originDirection.up (neighborHasValue boardMap location originDirection.up)
+    
+    let neighborList (boardMap: Map<coord, char>) (location : coord) = trueNeighborList boardMap location Map.empty
+     
+    let possiblePlacements (boardMap: Map<coord, char>) = Map.fold (fun acc key value -> addToPossiblePlacements acc (neighborList boardMap key)) Map.empty boardMap
+   
+    let findMovesProto (possiblePlacements : Map<coord,originDirection>) (boardMap : Map<coord, char>) (hand : MultiSet.MultiSet<uint32>) =
+        Map.fold (fun acc key value -> Map.add key value acc) Map.empty possiblePlacements
+    
+    let getParent (possiblePlacement: (coord*originDirection)) (boardMap : Map<coord, char>) =
+        match snd possiblePlacement with
+        | originDirection.left -> (coord((fst possiblePlacement|> fst)-1 , (fst possiblePlacement |> snd)), Map.find ((fst possiblePlacement|> fst)-1 , (fst possiblePlacement |> snd)) boardMap)
+        | originDirection.right -> (coord((fst possiblePlacement|> fst)+1 , (fst possiblePlacement |> snd)),Map.find ((fst possiblePlacement|> fst)+1 , (fst possiblePlacement |> snd)) boardMap)
+        | originDirection.up -> (coord((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)+1) ,Map.find ((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)+1) boardMap)
+        | originDirection.down -> (coord((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)-1),Map.find ((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)-1) boardMap)
+    //let rec findMoveProtoReal (possiblePlacement : (coord*originDirection)) (st : State.state) (myWord : (coord*char) list) =
+      //  match myWord with
+        //    | myWord when Dictionary.lookup (myWord |> List.map snd |> List.toArray |> System.String) st.dict = true -> myWord
+          //  | myWord when myWord = List.empty -> 
+            //    match Dictionary.step (getParent possiblePlacement st.boardMap |> snd) st.dict with
+              //      | None -> List.empty 
+                //    | Some x -> findMoveProtoReal possiblePlacement (State.mkState st.board (snd x) st.playerNumber st.hand st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
+            //| myWord ->
+              //  match Dictionary.step (getParent possiblePlacement st.boardMap |> snd) st.dict with
+                //    | None -> List.empty
+                  //  | Some x -> findMoveProtoReal possiblePlacement (State.mkState st.board (snd x) st.playerNumber (MultiSet.remove (getParent possiblePlacement st.boardMap |> snd) 1u st.hand) st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
+        
+    //let findMoveProto (possiblePlacement : (coord*originDirection)) (st : State.state) = findMoveProtoReal possiblePlacement st List.empty

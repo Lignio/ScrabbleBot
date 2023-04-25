@@ -1,12 +1,11 @@
 ﻿// Learn more about F# at http://fsharp.org
-
 let time f =
     let start = System.DateTime.Now
     let res = f ()
     let finish = System.DateTime.Now
     (res, finish - start)
 
-let readLines filePath = System.IO.File.ReadLines(filePath)
+let readLines filePath = System.IO.File.ReadLines("..\\ScrabbleTemplate\\ScrabbleBot\\")
 
 let spawnMultiples name dict bot =
     let rec aux =
