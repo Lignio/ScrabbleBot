@@ -188,6 +188,15 @@ module Bot =
                         ) myWord st.hand
     let findMove (possiblePlacement : (coord*originDirection)) (st : State.state) = findMoveReal possiblePlacement st List.empty
     
+    
+    let rec findWords (st: State.state) (word: char list) =
+        MultiSet.fold (fun acc e x ->
+            match Dictionary.step (Util.IdToChar e) st.dict with
+            | None -> word
+            | Some (false, dict) ->  findWords (State.mkState st.board dict st.playerNumber (MultiSet.removeSingle e st.hand) st.boardMap) ((Util.IdToChar e)::acc)
+            | Some (true, dict) ->  (Util.IdToChar e)::acc
+        ) word st.hand
+        
     let findMoves (possiblePlacements : Map<coord,originDirection>) (st : State.state) =
         Map.fold (fun acc key value -> (findMove (key,value) st) :: acc) List.empty possiblePlacements
         
