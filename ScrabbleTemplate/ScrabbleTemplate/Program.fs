@@ -40,7 +40,7 @@ module Program
 
         let words     = readLines "ScrabbleTemplate/Dictionaries/English.txt"
 
-        let handSize   = 3u
+        let handSize   = 7u
         let timeout    = None
         let tiles      = ScrabbleUtil.English.tiles 1u
         let seed       = None

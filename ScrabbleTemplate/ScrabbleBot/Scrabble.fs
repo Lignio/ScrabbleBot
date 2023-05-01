@@ -130,6 +130,7 @@ module Bot =
     
     // can take empty word and wordlist as well as state to return worList with all words using letters in hand
     let rec findWordReal (st: State.state) (word: char list) (wordList : (char list) list) =
+        debugPrint (sprintf "We do Find Word Real!")
         MultiSet.fold (fun (wordAcc, wordListAcc) e x ->
             match Dictionary.step (Util.IdToChar e) st.dict with
             | None -> (word, wordListAcc)
@@ -158,7 +159,7 @@ module Bot =
             
     // take a startLetter and state, and runs find word with that letter as start letter. It then gives each char in the word a coord and return a list of char coord, each letter and their coord. And a int, length of word
     // DO NOT DELETE
-    //let wordWithPlacements (startLetter : (coord*char) * originDirection) (st: State.state) =  List.fold (fun (accList, accCount) elem -> if accCount = 0 then (((fst startLetter) :: accList), (accCount + 1)) else (((getPlacement accCount (snd startLetter) (fst startLetter |> fst), elem) :: accList), accCount + 1)) (list.Empty, 0) (findWord st ((fst startLetter |> snd ) :: List.empty))
+    let wordWithPlacements (startLetter : (coord*char) * originDirection) (st: State.state) =  List.fold (fun (accList, accCount) elem -> if accCount = 0 then (((fst startLetter) :: accList), (accCount + 1)) else (((getPlacement accCount (snd startLetter) (fst startLetter |> fst), elem) :: accList), accCount + 1)) (List.Empty, 0) (findWordFromExisting st ((fst startLetter |> snd ) :: List.Empty))
     
     let wordToCommand (word : (coord*char) list) = List.fold (fun acc elem -> (((fst elem |> fst) ,(fst elem |> snd)), ((Util.CharToId (snd elem)), (snd elem, 1))) :: acc) List.Empty word
     
@@ -177,7 +178,21 @@ module Bot =
                     |true -> None
                     |false -> Some originDirection.right
                                                                     
-    let getPossibleStartingLetters (st: State.state) = Map.fold (fun acc key value -> ((key,value) ,getPossibleDirection key st) :: acc ) List.empty st.boardMap
+    let getPossibleStartingLetters (st: State.state) =
+      Map.fold (fun acc key value ->
+        match getPossibleDirection key st with
+        | None -> acc
+        | Some x -> ((key,value) ,x) :: acc
+        ) List.Empty st.boardMap
+    
+     
+    let wordToEachStartingLetter (st: State.state) = List.fold (fun acc elem -> (wordWithPlacements elem st) :: acc) List.Empty (getPossibleStartingLetters st)
+    
+    let bestWord (st : State.state) = List.fold (fun acc elem -> if (snd elem) > List.length acc then fst elem else acc) List.Empty (wordToEachStartingLetter st)
+    
+    let bestWordNoStart (st : State.state) = List.fold (fun (accList, accNr) elem -> (coord(accNr,0) ,elem) :: accList, accNr+1 ) (List.Empty,0) (findWord st)
+    let myMove (st : State.state) = if st.boardMap.IsEmpty then wordToCommand (fst (bestWordNoStart st)) else wordToCommand (bestWord st)
+    
     // DO NOT DELETE
    // let allPossibleMoves (st: State.state) =
      //   List.fold (fun acc elem ->
@@ -195,9 +210,11 @@ module Scrabble =
             Print.printHand pieces (State.hand st)
 
             // remove the force print when you move on from manual input (or when you have learnt the format)
-            forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
-            let input =  System.Console.ReadLine()
-            let move = RegEx.parseMove input
+            //forcePrint "Input move (format '(<x-coordinate> <y-coordinate> <piece id><character><point-value> )*', note the absence of space between the last inputs)\n\n"
+            //let input =  System.Console.ReadLine()
+            let myMove = Bot.myMove st
+            debugPrint (sprintf "Attempted move: %A" myMove)
+            let move = myMove
 
             debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
             send cstream (SMPlay move)
@@ -250,13 +267,13 @@ module Scrabble =
         let dict = dictf false // Uncomment if using a trie for your dictionary
         let board = Parser.mkBoard boardP
                   
-        //let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
+        let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
         
-        let customHand = [(9u, 1u); (18u, 1u); (1u, 1u)]
+        //let customHand = [(9u, 1u); (18u, 1u); (1u, 1u)]
 
-        let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty customHand
+        //let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty customHand
 
-        debugPrint (sprintf "words = %A" (snd (Bot.findWordReal (State.mkState board dict playerNumber handSet Map.empty) List.Empty List.Empty)))
+        //debugPrint (sprintf "words = %A" (snd (Bot.findWordReal (State.mkState board dict playerNumber handSet Map.empty) List.Empty List.Empty)))
 
         fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet Map.empty)
     
