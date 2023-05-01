@@ -21,7 +21,7 @@
 
     let remove a n (M s) = if (numItems a (M s)) > n then (M (Map.add a (numItems a (M s) - n) s)) else (M (Map.remove a s))
 
-    let removeSingle a (M s) = if (numItems a (M s)) > 0u then (M (Map.add a (numItems a (M s) - 1u) s)) else (M (Map.remove a s))
+    let removeSingle a (M s) = if (numItems a (M s)) > 1u then (M (Map.add a (numItems a (M s) - 1u) s)) else (M (Map.remove a s))
 
     let fold (f: 'a -> 'b -> uint32 -> 'a) acc (M s) = Map.fold(f) acc s
 

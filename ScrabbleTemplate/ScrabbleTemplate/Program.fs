@@ -40,7 +40,7 @@ module Program
 
         let words     = readLines "ScrabbleTemplate/Dictionaries/English.txt"
 
-        let handSize   = 7u
+        let handSize   = 3u
         let timeout    = None
         let tiles      = ScrabbleUtil.English.tiles 1u
         let seed       = None
@@ -57,7 +57,6 @@ module Program
         let players    = [("Your name here", dictionary, ScrapBot.Scrabble.startGame)]
 
         //let players = spawnMultiples "OxyphenButazone" dictionary Oxyphenbutazone.Scrabble.startGame 2
-
 
         do ScrabbleServer.Comm.startGame 
               board dictionary handSize timeout tiles seed port players
