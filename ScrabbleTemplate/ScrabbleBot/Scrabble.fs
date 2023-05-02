@@ -209,12 +209,21 @@ module Scrabble =
 
             debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
             // returns a list of ids of the chars in our hand we want to change
-            let listToChange = MultiSet.fold (fun acc key elem -> if (Util.IdToPoint key) < 5  then key::acc else acc) List.empty st.hand
+            let listToChange = fst (MultiSet.fold (fun (accList, accCount) key elem -> if (Util.IdToPoint key) > 4 && accCount < (100 - (Map.count st.boardMap)) then (key::accList),accCount+1 else accList, accCount) (List.empty,0) st.hand)
+                
+                
+                
+                //then MultiSet.fold (fun acc key elem -> if (Util.IdToPoint key) > 4  then key::acc else acc) List.empty st.hand else List.Empty
             let removeLettersToChangeFromHand (listOfRemovers : uint32 list) = MultiSet.fold (fun acc key elem -> if (List.contains key listOfRemovers) then MultiSet.removeSingle key acc else acc) st.hand st.hand
-            
+
+
+
             let sendMove =
                 match myMove with
-                | [] -> SMChange listToChange
+                | [] ->
+                    match listToChange with
+                    | [] -> SMPass 
+                    | n -> SMChange listToChange
                 | n -> SMPlay move
                  
             send cstream sendMove
@@ -244,6 +253,8 @@ module Scrabble =
                  let addAndRemoveFromHand (lettersToAdd: (uint32*uint32) list) (b : State.state) (removeLetters: uint32 list) = lettersToAdd |> List.fold (fun acc value -> MultiSet.add (fst value) (snd value) acc) (removeLettersToChangeFromHand removeLetters)
                  let st' = State.mkState st.board st.dict st.playerNumber (addAndRemoveFromHand newPieces st (listToChange)) st.boardMap // This state needs to be update
                  aux st'
+            | RCM (CMPassed pid) ->
+                aux st
             | RCM (CMGameOver _) -> ()
             | RCM a -> failwith (sprintf "not implmented: %A" a)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
