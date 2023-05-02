@@ -130,7 +130,6 @@ module Bot =
     
     // can take empty word and wordlist as well as state to return worList with all words using letters in hand
     let rec findWordReal (st: State.state) (word: char list) (wordList : (char list) list) =
-        debugPrint (sprintf "We do Find Word Real!")
         MultiSet.fold (fun (wordAcc, wordListAcc) e x ->
             match Dictionary.step (Util.IdToChar e) st.dict with
             | None -> (word, wordListAcc)
@@ -161,7 +160,7 @@ module Bot =
     // DO NOT DELETE
     let wordWithPlacements (startLetter : (coord*char) * originDirection) (st: State.state) =  List.fold (fun (accList, accCount) elem -> if accCount = 0 then (((fst startLetter) :: accList), (accCount + 1)) else (((getPlacement accCount (snd startLetter) (fst startLetter |> fst), elem) :: accList), accCount + 1)) (List.Empty, 0) (findWordFromExisting st ((fst startLetter |> snd ) :: List.Empty))
     
-    let wordToCommand (word : (coord*char) list) = List.fold (fun acc elem -> (((fst elem |> fst) ,(fst elem |> snd)), ((Util.CharToId (snd elem)), (snd elem, 1))) :: acc) List.Empty word
+    let wordToCommand (word : (coord*char) list) = List.fold (fun acc elem -> (coord ((fst elem |> fst) ,(fst elem |> snd)), ((Util.CharToId (snd elem)), (snd elem, 1))) :: acc) List.Empty word
     
     let getPossibleDirection (place : coord) (st : State.state) =
         let neighborMap = neighborList st.boardMap place
