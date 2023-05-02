@@ -69,8 +69,8 @@ module Bot =
         | down = 1
         | left = 2
         | up = 3
-        
-    let addToPossiblePlacements (possiblePlacement : Map<coord,originDirection>) (neighborList : Map<originDirection, (bool*coord)>) = Map.fold (fun acc key value -> if fst value = false then Map.add (snd value) key acc else acc) possiblePlacement neighborList
+   
+    // Takes a coord and goes through each neighbor, returning coords and a bool of wheter or not there is a letter there 
     let neighborHasValue (boardMap: Map<coord, char>) (location :coord) (neighbor : originDirection) =
         match neighbor with
             | originDirection.right ->
@@ -89,38 +89,16 @@ module Bot =
                match boardMap.TryFind (fst location,(snd location) - 1) with
                     | None -> (false, (fst location , (snd location) - 1))
                     | Some x -> (true, (fst location , (snd location) - 1))
-                                                                                                                        
+    
+    // Actually does the thing                                                                                                                     
     let trueNeighborList (boardMap: Map<coord, char>) (location : coord) (neighborMap : Map<originDirection,(bool*coord)>) = neighborMap |> Map.add originDirection.right (neighborHasValue boardMap location originDirection.right) |>
                                                                                                                              Map.add originDirection.down (neighborHasValue boardMap location originDirection.down) |>
                                                                                                                              Map.add originDirection.left (neighborHasValue boardMap location originDirection.left) |>
                                                                                                                              Map.add originDirection.up (neighborHasValue boardMap location originDirection.up)
-    
+    // Takes a location and returns a list of the four neighbors
     let neighborList (boardMap: Map<coord, char>) (location : coord) = trueNeighborList boardMap location Map.empty
-     
-    let possiblePlacements (boardMap: Map<coord, char>) = Map.fold (fun acc key value -> addToPossiblePlacements acc (neighborList boardMap key)) Map.empty boardMap
     
-    let getParent (possiblePlacement: (coord*originDirection)) (boardMap : Map<coord, char>) =
-        match snd possiblePlacement with
-        | originDirection.left -> (coord((fst possiblePlacement|> fst)-1 , (fst possiblePlacement |> snd)), Map.find ((fst possiblePlacement|> fst)-1 , (fst possiblePlacement |> snd)) boardMap)
-        | originDirection.right -> (coord((fst possiblePlacement|> fst)+1 , (fst possiblePlacement |> snd)),Map.find ((fst possiblePlacement|> fst)+1 , (fst possiblePlacement |> snd)) boardMap)
-        | originDirection.up -> (coord((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)+1) ,Map.find ((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)+1) boardMap)
-        | originDirection.down -> (coord((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)-1),Map.find ((fst possiblePlacement|> fst) , (fst possiblePlacement |> snd)-1) boardMap)
-    let rec findMoveReal (possiblePlacement : (coord*originDirection)) (st : State.state) (myWord : (coord*char) list) =
-        match myWord with
-            | myWord when Dictionary.lookup (myWord |> List.map snd |> List.toArray |> System.String) st.dict = true -> myWord
-            | myWord when myWord = List.empty -> 
-                match Dictionary.step (getParent possiblePlacement st.boardMap |> snd) st.dict with
-                    | None -> List.empty 
-                    | Some x -> findMoveReal possiblePlacement (State.mkState st.board (snd x) st.playerNumber st.hand st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
-            | myWord -> MultiSet.fold (fun acc e x ->
-                match Dictionary.step (Util.IdToChar e) st.dict with
-                    | None -> List.empty
-                    | Some (false, x) -> findMoveReal possiblePlacement (State.mkState st.board x st.playerNumber (MultiSet.remove (getParent possiblePlacement st.boardMap |> snd |> Util.CharToId) 1u st.hand) st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
-                    | Some (true, x) -> myWord //findMoveReal possiblePlacement (State.mkState st.board x st.playerNumber (MultiSet.remove (getParent possiblePlacement st.boardMap |> snd |> Util.CharToId) 1u st.hand) st.boardMap) ((getParent possiblePlacement st.boardMap) :: myWord)
-                        ) myWord st.hand
-    let findMove (possiblePlacement : (coord*originDirection)) (st : State.state) = findMoveReal possiblePlacement st List.empty
-    
-    // Makes state from initial word
+    // Makes state after initial word has then stepped
     let getInitialDict (st: State.state) (word: char list) =
         List.fold (fun dictAcc value ->
             match Dictionary.step (value) dictAcc with
@@ -128,7 +106,7 @@ module Bot =
             | Some (_, dict) -> dict
             ) st.dict word
     
-    // can take empty word and wordlist as well as state to return worList with all words using letters in hand
+    // Finds all possible words given our state and hand
     let rec findWordReal (st: State.state) (word: char list) (wordList : (char list) list) =
         MultiSet.fold (fun (wordAcc, wordListAcc) e x ->
             match Dictionary.step (Util.IdToChar e) st.dict with
@@ -142,26 +120,28 @@ module Bot =
                 (wordAcc, (snd (findWordReal (State.mkState st.board dict st.playerNumber (MultiSet.removeSingle e st.hand) st.boardMap) wordAcc1 wordListAcc1)))
         ) (word, wordList) st.hand
    
+    // Takes a list of words, and returns the longest
     let wordListToBestWord (wordList : char list list) = List.fold (fun acc elem -> if (List.length elem) > (List.length acc) then elem else acc) List.Empty wordList
+    
+    // Combines the two previous functions to make a single function that can find a word
     let findWord (st: State.state) = wordListToBestWord(snd (findWordReal st List.Empty List.Empty))
+    
+    // Uses findWord and getInitialDict, to get a word using the given word as its start. 
     let findWordFromExisting (st: State.state) (word: char list) =(findWord (State.mkState st.board (getInitialDict st word) st.playerNumber st.hand st.boardMap))
     
-    let findMoves (possiblePlacements : Map<coord,originDirection>) (st : State.state) =
-       Map.fold (fun acc key value -> (findMove (key,value) st) :: acc) List.empty possiblePlacements
-    
-    let chooseMove (moves : (coord * char) list list) = List.head moves 
-    
+    // Uses the starting letter and a direction to return a coord i in that direction
     let getPlacement (i : int) (direction : originDirection) (start : coord) =
         match direction with
             | originDirection.right -> coord(fst start + i , snd start)
             | originDirection.down -> coord(fst start, snd start + i)
             
-    // take a startLetter and state, and runs find word with that letter as start letter. It then gives each char in the word a coord and return a list of char coord, each letter and their coord. And a int, length of word
-    // DO NOT DELETE
+    // Takes a startLetter and state, and runs find word with that letter as start letter. It then gives each char in the word a coord and return a list of char coord, each letter and their coord. And a int, length of word
     let wordWithPlacements (startLetter : (coord*char) * originDirection) (st: State.state) =  List.fold (fun (accList, accCount) elem -> if accCount = 0 then (((fst startLetter) :: accList), (accCount + 1)) else (((getPlacement accCount (snd startLetter) (fst startLetter |> fst), elem) :: accList), accCount + 1)) (List.Empty, 0) (findWordFromExisting st ((fst startLetter |> snd ) :: List.Empty))
     
-    let wordToCommand (word : (coord*char) list) = List.fold (fun acc elem -> (coord ((fst elem |> fst) ,(fst elem |> snd)), ((Util.CharToId (snd elem)), (snd elem, 1))) :: acc) List.Empty word
+    // takes a word in form of coord and char list, and makes it into a prober command list we can give to server
+    let wordToCommand (word : (coord*char) list) = List.fold (fun acc elem -> (coord ((fst elem |> fst) ,(fst elem |> snd)), ((Util.CharToId (snd elem)), (snd elem, Util.CharToPoint (snd elem)))) :: acc) List.Empty word
     
+    // Takes a place and looks at each neighbor. Returns right if no neighbors left or right, return up if no neighbor up or down. None if neither
     let getPossibleDirection (place : coord) (st : State.state) =
         let neighborMap = neighborList st.boardMap place
         match fst (Map.find originDirection.right neighborMap) with
@@ -176,7 +156,8 @@ module Bot =
                 match fst (Map.find originDirection.left neighborMap) with
                     |true -> None
                     |false -> Some originDirection.right
-                                                                    
+                                          
+    // Goes through our boardMap and returns each letter and a direction (if any) we can write in  + coords                                                              
     let getPossibleStartingLetters (st: State.state) =
       Map.fold (fun acc key value ->
         match getPossibleDirection key st with
@@ -184,21 +165,17 @@ module Bot =
         | Some x -> ((key,value) ,x) :: acc
         ) List.Empty st.boardMap
     
-     
+    // Goes through each possible starting letter, and generates a word (the best word) with coords using wordWithPlacements for each of them 
     let wordToEachStartingLetter (st: State.state) = List.fold (fun acc elem -> (wordWithPlacements elem st) :: acc) List.Empty (getPossibleStartingLetters st)
     
+    // Takes the longest word from wordToEachStartingLetter
     let bestWord (st : State.state) = List.fold (fun acc elem -> if (snd elem) > List.length acc then fst elem else acc) List.Empty (wordToEachStartingLetter st)
     
+    // Takes the longest word in findWord
     let bestWordNoStart (st : State.state) = List.fold (fun (accList, accNr) elem -> (coord(accNr,0) ,elem) :: accList, accNr+1 ) (List.Empty,0) (findWord st)
-    let myMove (st : State.state) = if st.boardMap.IsEmpty then wordToCommand (fst (bestWordNoStart st)) else wordToCommand (bestWord st)
     
-    // DO NOT DELETE
-   // let allPossibleMoves (st: State.state) =
-     //   List.fold (fun acc elem ->
-       //     match snd elem with
-         //       | None -> acc
-           //     | Some x -> (((wordWithPlacements (fst elem, x) st) |> fst) |> wordToCommand) :: acc
-        //) List.empty (getPossibleStartingLetters st)
+    // uses the correct of the two previous and wordToCommand to give a move we can send straight to the server   
+    let myMove (st : State.state) = if st.boardMap.IsEmpty then wordToCommand (fst (bestWordNoStart st)) else wordToCommand (bestWord st)
         
 module Scrabble =
     open System.Threading
@@ -224,9 +201,11 @@ module Scrabble =
             match msg with
             | RCM (CMPlaySuccess(ms, points, newPieces)) ->
                 (* Successful play by you. Update your state (remove old tiles, add the new ones, change turn, etc) *)
-                let addToHand (a : (uint32 * uint32) list) (b : State.state) = a |> List.fold (fun acc value -> MultiSet.add (fst value) (snd value) acc) b.hand
+                let removeFromHand (letters: (coord * (uint32 * (char*int))) list) (st: State.state) =
+                    List.fold (fun acc value -> MultiSet.removeSingle (snd value |> fst) acc) st.hand letters
+                let addToHand (a : (uint32*uint32) list) (b : State.state) (letters: (coord * (uint32 * (char*int))) list) = a |> List.fold (fun acc value -> MultiSet.add (fst value) (snd value) acc) (removeFromHand letters b)
                 let addToMap (a : (coord * (uint32 * (char * int))) list) (b : State.state) = List.fold (fun acc value -> Map.add (fst value) (snd value |> snd |> fst) acc) b.boardMap a
-                let st' = State.mkState st.board st.dict st.playerNumber (addToHand newPieces st) (addToMap ms st) // This state needs to be update
+                let st' = State.mkState st.board st.dict st.playerNumber (addToHand newPieces st ms) (addToMap ms st) // This state needs to be update
                 aux st'
             | RCM (CMPlayed (pid, ms, points)) ->
                 (* Successful play by other player. Update your state *)
