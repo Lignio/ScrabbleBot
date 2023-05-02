@@ -1,6 +1,7 @@
 module Util
 let CharToId (c : char) =
     match c with
+    |'e' -> 0u
     |'A'-> 1u
     |'B' -> 2u
     |'C' -> 3u
@@ -31,6 +32,7 @@ let CharToId (c : char) =
 
 let IdToChar (i : uint32) =
     match i with
+    |0u -> 'e'
     |1u -> 'A'
     |2u -> 'B'
     |3u -> 'C'
@@ -61,6 +63,7 @@ let IdToChar (i : uint32) =
     
 let CharToPoint (c:char) =
     match c with
+    |'e' -> 0
     |'A'-> 1
     |'B' -> 3
     |'C' -> 3

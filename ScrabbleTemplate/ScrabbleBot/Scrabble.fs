@@ -109,7 +109,7 @@ module Bot =
     // Finds all possible words given our state and hand
     let rec findWordReal (st: State.state) (word: char list) (wordList : (char list) list) =
         MultiSet.fold (fun (wordAcc, wordListAcc) e x ->
-            match Dictionary.step (Util.IdToChar e) st.dict with
+            match Dictionary.step (System.Char.ToUpper (Util.IdToChar e)) st.dict with
             | None -> (word, wordListAcc)
             | Some (false, dict) ->
                 let wordAcc1 = wordAcc@[Util.IdToChar e]
@@ -128,9 +128,8 @@ module Bot =
     
     // Uses findWord and getInitialDict, to get a word using the given word as its start. 
     let findWordFromExisting (st: State.state) (word: char list) =
-        let result =(findWord (State.mkState st.board (getInitialDict st word) st.playerNumber st.hand st.boardMap))
-        debugPrint(sprintf "findWordFromExistingDebug: %A" result)
-        result
+         (findWord (State.mkState st.board (getInitialDict st word) st.playerNumber st.hand st.boardMap))
+        
          
     // Uses the starting letter and a direction to return a coord i in that direction
     let getPlacement (i : int) (direction : originDirection) (start : coord) =
@@ -140,11 +139,10 @@ module Bot =
             
     // Takes a startLetter and state, and runs find word with that letter as start letter. It then gives each char in the word a coord and return a list of char coord, each letter and their coord. And a int, length of word
     let wordWithPlacements (startLetter : (coord*char) * originDirection) (st: State.state) =
-        let result = List.fold (fun (accList, accCount) elem -> ((accList@[(getPlacement (accCount+1) (snd startLetter) (fst startLetter |> fst), elem)]), accCount + 1)) (List.Empty, 0) (findWordFromExisting st ((fst startLetter |> snd ) :: List.Empty))
-        debugPrint(sprintf "CoordsResultForMove: %A" result)
-        result
+        List.fold (fun (accList, accCount) elem -> ((accList@[(getPlacement (accCount+1) (snd startLetter) (fst startLetter |> fst), elem)]), accCount + 1)) (List.Empty, 0) (findWordFromExisting st ((fst startLetter |> snd ) :: List.Empty))
+        
     // takes a word in form of coord and char list, and makes it into a prober command list we can give to server
-    let wordToCommand (word : (coord*char) list) = List.fold (fun acc elem -> (coord ((fst elem |> fst) ,(fst elem |> snd)), ((Util.CharToId (snd elem)), (snd elem, Util.CharToPoint (snd elem)))) :: acc) List.Empty word
+    let wordToCommand (word : (coord*char) list) = List.fold (fun acc elem -> acc@[(coord ((fst elem |> fst) ,(fst elem |> snd)), ((Util.CharToId (snd elem)), (System.Char.ToUpper (snd elem), Util.CharToPoint (snd elem))))]) List.Empty word
     
     // Takes a place and looks at each neighbor. Returns right if no neighbors left or right, return up if no neighbor up or down. None if neither
     let getPossibleDirection (place : coord) (st : State.state) =
@@ -179,11 +177,11 @@ module Bot =
             match countAcc with
             | 0 -> if (Map.fold (fun acc key value -> if (fst value) then acc+1 else acc) 0 (neighborList st.boardMap (fst value))) > 1
                    then (false, countAcc+1)
-                   else (true, countAcc+1) 
+                   else (boolAcc, countAcc+1) 
             | n -> if (Map.fold (fun acc key value -> if (fst value) then acc+1 else acc) 0 (neighborList st.boardMap (fst value))) > 0
                    then (false, countAcc+1)
-                   else (true, countAcc+1)
-            ) (false, 0) placementList       
+                   else (boolAcc, countAcc+1)
+            ) (true, 0) placementList       
    
     // Takes the longest word from wordToEachStartingLetter 
     let bestWord (st : State.state) = List.fold (fun acc elem -> if (snd elem) > List.length acc && (fst (checkWordNeighbor (fst elem) st)) then fst elem else acc) List.Empty (wordToEachStartingLetter st)
@@ -210,7 +208,17 @@ module Scrabble =
             let move = myMove
 
             debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
-            send cstream (SMPlay move)
+            // returns a list of ids of the chars in our hand we want to change
+            let listToChange = MultiSet.fold (fun acc key elem -> key::acc ) List.empty st.hand
+            let removeLettersToChangeFromHand (listOfRemovers : uint32 list) = MultiSet.fold (fun acc key elem -> if (List.contains key listOfRemovers) then MultiSet.removeSingle key acc else acc) st.hand st.hand
+            //let changeHand (listToChange: uint32 list) = 
+            
+            let sendMove =
+                match myMove with
+                | [] -> SMChange listToChange
+                | n -> SMPlay move
+                 
+            send cstream sendMove
 
             let msg = recv cstream
             debugPrint (sprintf "Player %d <- Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
@@ -220,9 +228,9 @@ module Scrabble =
                 (* Successful play by you. Update your state (remove old tiles, add the new ones, change turn, etc) *)
                 let removeFromHand (letters: (coord * (uint32 * (char*int))) list) (st: State.state) =
                     List.fold (fun acc value -> MultiSet.removeSingle (snd value |> fst) acc) st.hand letters
-                let addToHand (a : (uint32*uint32) list) (b : State.state) (letters: (coord * (uint32 * (char*int))) list) = a |> List.fold (fun acc value -> MultiSet.add (fst value) (snd value) acc) (removeFromHand letters b)
+                let addAndRemoveFromHand (a : (uint32*uint32) list) (b : State.state) (letters: (coord * (uint32 * (char*int))) list) = a |> List.fold (fun acc value -> MultiSet.add (fst value) (snd value) acc) (removeFromHand letters b)
                 let addToMap (a : (coord * (uint32 * (char * int))) list) (b : State.state) = List.fold (fun acc value -> Map.add (fst value) (snd value |> snd |> fst) acc) b.boardMap a
-                let st' = State.mkState st.board st.dict st.playerNumber (addToHand newPieces st ms) (addToMap ms st) // This state needs to be update
+                let st' = State.mkState st.board st.dict st.playerNumber (addAndRemoveFromHand newPieces st ms) (addToMap ms st) // This state needs to be update
                 aux st'
             | RCM (CMPlayed (pid, ms, points)) ->
                 (* Successful play by other player. Update your state *)
@@ -233,6 +241,10 @@ module Scrabble =
                 (* Failed play. Update your state *)
                 let st' = st // This state needs to be updated
                 aux st'
+            | RCM (CMChangeSuccess newPieces) ->
+                 let addAndRemoveFromHand (lettersToAdd: (uint32*uint32) list) (b : State.state) (removeLetters: uint32 list) = lettersToAdd |> List.fold (fun acc value -> MultiSet.add (fst value) (snd value) acc) (removeLettersToChangeFromHand removeLetters)
+                 let st' = State.mkState st.board st.dict st.playerNumber (addAndRemoveFromHand newPieces st (listToChange)) st.boardMap // This state needs to be update
+                 aux st'
             | RCM (CMGameOver _) -> ()
             | RCM a -> failwith (sprintf "not implmented: %A" a)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
