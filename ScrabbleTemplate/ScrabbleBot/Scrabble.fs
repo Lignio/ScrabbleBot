@@ -209,9 +209,8 @@ module Scrabble =
 
             debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
             // returns a list of ids of the chars in our hand we want to change
-            let listToChange = MultiSet.fold (fun acc key elem -> key::acc ) List.empty st.hand
+            let listToChange = MultiSet.fold (fun acc key elem -> if (Util.IdToPoint key) < 5  then key::acc else acc) List.empty st.hand
             let removeLettersToChangeFromHand (listOfRemovers : uint32 list) = MultiSet.fold (fun acc key elem -> if (List.contains key listOfRemovers) then MultiSet.removeSingle key acc else acc) st.hand st.hand
-            //let changeHand (listToChange: uint32 list) = 
             
             let sendMove =
                 match myMove with
