@@ -171,6 +171,49 @@ module Bot =
     // Goes through each possible starting letter, and generates a word (the best word) with coords using wordWithPlacements for each of them 
     let wordToEachStartingLetter (st: State.state) = List.fold (fun acc elem -> (wordWithPlacements elem st) :: acc) List.Empty (getPossibleStartingLetters st)
     
+    
+    let rec buildExistingWordFromCoordReal (startCoord: coord) (st: State.state) (direction: originDirection) (word: char list*coord) =
+        match direction with
+        | originDirection.right ->
+                let wordUpdate = ((fst word)@[st.boardMap[startCoord]], startCoord)
+                if fst (Map.find direction (neighborList st.boardMap startCoord)) then
+                                let newCoord = Map.find direction (neighborList st.boardMap startCoord) |> snd
+                                buildExistingWordFromCoordReal newCoord st direction wordUpdate
+                else wordUpdate
+        | originDirection.down ->
+                let wordUpdate = ((fst word)@[st.boardMap[startCoord]], startCoord)
+                if fst (Map.find direction (neighborList st.boardMap startCoord)) then
+                                let newCoord = Map.find direction (neighborList st.boardMap startCoord) |> snd
+                                buildExistingWordFromCoordReal newCoord st direction wordUpdate
+                else wordUpdate
+        | n ->  word
+    
+    
+    let buildExistingWordFromCoord (startCoord: coord) (st: State.state) (direction: originDirection) = buildExistingWordFromCoordReal startCoord st direction (List.Empty, coord(0,0))
+        
+    
+    // Using buildWordFromExistingCoord, this function goes through our boardmap, calling that function on each letter that is the starting letter of a word
+    let findAllWordsOnBoard (st: State.state) = Map.fold (fun acc key value ->
+        match fst (Map.find originDirection.left (neighborList st.boardMap key)) with
+        | true ->
+            match fst (Map.find originDirection.up (neighborList st.boardMap key)) with
+            |true -> acc
+            |false ->
+                match fst (Map.find originDirection.down (neighborList st.boardMap key)) with
+                | true -> (buildExistingWordFromCoord key st originDirection.down) :: acc
+                | false -> acc
+        | false ->
+            match fst (Map.find originDirection.right (neighborList st.boardMap key)) with
+            |true -> (buildExistingWordFromCoord key st originDirection.right)::acc
+            |false ->
+                match fst (Map.find originDirection.up (neighborList st.boardMap key)) with
+                |true -> acc
+                |false ->
+                    match fst (Map.find originDirection.down (neighborList st.boardMap key)) with
+                    | true -> (buildExistingWordFromCoord key st originDirection.down) :: acc
+                    | false -> acc
+                                                ) List.Empty st.boardMap
+    
     // Checks if the new word has neighbors true if it does not
     let checkWordNeighbor (placementList: (coord*char) list) (st: State.state) =
         List.fold (fun (boolAcc, countAcc) value ->
