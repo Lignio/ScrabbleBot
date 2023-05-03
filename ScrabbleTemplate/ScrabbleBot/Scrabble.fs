@@ -174,17 +174,21 @@ module Bot =
     let rec buildExistingWordFromCoordReal (startCoord: coord) (st: State.state) (direction: originDirection) (word: char list* (originDirection*coord)) =
         match direction with
         | originDirection.right ->
-                let wordUpdate = ((fst word)@[st.boardMap[startCoord]], (direction, startCoord))
+                let wordUpdate = (fst word@[(st.boardMap[startCoord])], (direction, startCoord))
                 if fst (Map.find direction (neighborList st.boardMap startCoord)) then
                                 let newCoord = Map.find direction (neighborList st.boardMap startCoord) |> snd
                                 buildExistingWordFromCoordReal newCoord st direction wordUpdate
                 else wordUpdate
         | originDirection.down ->
-                let wordUpdate = ((fst word)@[st.boardMap[startCoord]], (direction, startCoord))
+                let wordUpdate = (st.boardMap[startCoord] :: (fst word), (direction, startCoord))
                 if fst (Map.find direction (neighborList st.boardMap startCoord)) then
                                 let newCoord = Map.find direction (neighborList st.boardMap startCoord) |> snd
-                                buildExistingWordFromCoordReal newCoord st direction wordUpdate
-                else wordUpdate
+                                buildExistingWordFromCoordReal newCoord st direction wordUpdate              
+                else
+                    //debugPrint(sprintf "Word Already on Board Down: %A" wordUpdate)
+                    let newCoord = ((fst startCoord), (snd startCoord)+1)
+                    let actualWord = (fst wordUpdate, (direction, newCoord))
+                    actualWord
         | n ->  word
     
     
@@ -257,11 +261,13 @@ module Scrabble =
 
             debugPrint (sprintf "Player %d -> Server:\n%A\n" (State.playerNumber st) move) // keep the debug lines. They are useful.
             // returns a list of ids of the chars in our hand we want to change
-            let listToChange = fst (MultiSet.fold (fun (accList, accCount) key elem -> if (Util.IdToPoint key) > 3 && accCount < (100 - (Map.count st.boardMap)) then (key::accList),accCount+1 else accList, accCount) (List.empty,0) st.hand)
+            let listToChange = fst (MultiSet.fold (fun (accList, accCount) key elem -> if accCount < (104u - (uint32(Map.count st.boardMap) + (MultiSet.size st.hand))) then (key::accList),accCount+1u else accList, accCount) (List.empty,0u) st.hand)
     
             let removeLettersToChangeFromHand (listOfRemovers : uint32 list) = MultiSet.fold (fun acc key elem -> if (List.contains key listOfRemovers) then MultiSet.removeSingle key acc else acc) st.hand st.hand
 
-
+            debugPrint (sprintf "Current amount of tiles on board: %A" (Map.count st.boardMap))
+            debugPrint (sprintf "Our Hand: %A" st.hand)
+            
 
             let sendMove =
                 match myMove with
@@ -304,7 +310,7 @@ module Scrabble =
             | RCM a -> failwith (sprintf "not implmented: %A" a)
             | RGPE err -> printfn "Gameplay Error:\n%A" err; aux st
 
-
+  
         aux st
 
     let startGame 
