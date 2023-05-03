@@ -82,13 +82,13 @@ module Bot =
                     | None -> (false, ((fst location) - 1 , snd location))
                     | Some x-> (true, ((fst location) - 1 , snd location))
             | originDirection.up ->
-               match boardMap.TryFind (fst location , (snd location) + 1) with
-                    | None -> (false, (fst location , (snd location) + 1))
-                    | Some x -> (true, (fst location , (snd location) + 1))
-            | originDirection.down ->
-               match boardMap.TryFind (fst location,(snd location) - 1) with
+               match boardMap.TryFind (fst location , (snd location) - 1) with
                     | None -> (false, (fst location , (snd location) - 1))
                     | Some x -> (true, (fst location , (snd location) - 1))
+            | originDirection.down ->
+               match boardMap.TryFind (fst location,(snd location) + 1) with
+                    | None -> (false, (fst location , (snd location) + 1))
+                    | Some x -> (true, (fst location , (snd location) + 1))
     
     // Actually does the thing                                                                                                                     
     let trueNeighborList (boardMap: Map<coord, char>) (location : coord) (neighborMap : Map<originDirection,(bool*coord)>) = neighborMap |> Map.add originDirection.right (neighborHasValue boardMap location originDirection.right) |>
@@ -180,15 +180,11 @@ module Bot =
                                 buildExistingWordFromCoordReal newCoord st direction wordUpdate
                 else wordUpdate
         | originDirection.down ->
-                let wordUpdate = (st.boardMap[startCoord] :: (fst word), (direction, startCoord))
+                let wordUpdate = (fst word@[(st.boardMap[startCoord])], (direction, startCoord))
                 if fst (Map.find direction (neighborList st.boardMap startCoord)) then
                                 let newCoord = Map.find direction (neighborList st.boardMap startCoord) |> snd
                                 buildExistingWordFromCoordReal newCoord st direction wordUpdate              
-                else
-                    //debugPrint(sprintf "Word Already on Board Down: %A" wordUpdate)
-                    let newCoord = ((fst startCoord), (snd startCoord)+1)
-                    let actualWord = (fst wordUpdate, (direction, newCoord))
-                    actualWord
+                else wordUpdate
         | n ->  word
     
     
@@ -239,7 +235,7 @@ module Bot =
     let bestWord (st : State.state) = List.fold (fun acc elem -> if (snd elem) > List.length acc && (fst (checkWordNeighbor (fst elem) st)) then fst elem else acc) List.Empty ((wordToEachStartingLetter st)@(wordToEachStartingWord st))
     
     // Takes the longest word in findWord
-    let bestWordNoStart (st : State.state) = List.fold (fun (accList, accNr) elem -> (coord(accNr,0) ,elem) :: accList, accNr+1 ) (List.Empty,0) (findWord st)
+    let bestWordNoStart (st : State.state) = List.fold (fun (accList, accNr) elem -> (coord(accNr, 0) ,elem) :: accList, accNr+1 ) (List.Empty,0) (findWord st)
     
     // uses the correct of the two previous and wordToCommand to give a move we can send straight to the server   
     let myMove (st : State.state) = if st.boardMap.IsEmpty then wordToCommand (fst (bestWordNoStart st)) else wordToCommand (bestWord st)
