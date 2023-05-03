@@ -138,8 +138,11 @@ module Bot =
             | originDirection.down -> coord(fst start, snd start + i)
             
     // Takes a startLetter and state, and runs find word with that letter as start letter. It then gives each char in the word a coord and return a list of char coord, each letter and their coord. And a int, length of word
-    let wordWithPlacements (startLetter : (coord*char) * originDirection) (st: State.state) =
+    let wordWithPlacementsFromStartLetter (startLetter : (coord*char) * originDirection) (st: State.state) =
         List.fold (fun (accList, accCount) elem -> ((accList@[(getPlacement (accCount+1) (snd startLetter) (fst startLetter |> fst), elem)]), accCount + 1)) (List.Empty, 0) (findWordFromExisting st ((fst startLetter |> snd ) :: List.Empty))
+    // Same as above but using starting word instead of letter
+    let wordWithPlacementsFromStartWord (startWord : char list * (originDirection*coord)) (st : State.state) =
+        List.fold (fun (accList, accCount) elem -> ((accList@[(getPlacement (accCount+1) (snd startWord |> fst) (snd startWord |> snd), elem)]), accCount+1)) (List.Empty, 0) (findWordFromExisting st (fst startWord))
         
     // takes a word in form of coord and char list, and makes it into a prober command list we can give to server
     let wordToCommand (word : (coord*char) list) = List.fold (fun acc elem -> acc@[(coord ((fst elem |> fst) ,(fst elem |> snd)), ((Util.CharToId (snd elem)), (System.Char.ToUpper (snd elem), Util.CharToPoint (snd elem))))]) List.Empty word
@@ -168,20 +171,16 @@ module Bot =
         | Some x -> ((key,value) ,x) :: acc
         ) List.Empty st.boardMap
     
-    // Goes through each possible starting letter, and generates a word (the best word) with coords using wordWithPlacements for each of them 
-    let wordToEachStartingLetter (st: State.state) = List.fold (fun acc elem -> (wordWithPlacements elem st) :: acc) List.Empty (getPossibleStartingLetters st)
-    
-    
-    let rec buildExistingWordFromCoordReal (startCoord: coord) (st: State.state) (direction: originDirection) (word: char list*coord) =
+    let rec buildExistingWordFromCoordReal (startCoord: coord) (st: State.state) (direction: originDirection) (word: char list* (originDirection*coord)) =
         match direction with
         | originDirection.right ->
-                let wordUpdate = ((fst word)@[st.boardMap[startCoord]], startCoord)
+                let wordUpdate = ((fst word)@[st.boardMap[startCoord]], (direction, startCoord))
                 if fst (Map.find direction (neighborList st.boardMap startCoord)) then
                                 let newCoord = Map.find direction (neighborList st.boardMap startCoord) |> snd
                                 buildExistingWordFromCoordReal newCoord st direction wordUpdate
                 else wordUpdate
         | originDirection.down ->
-                let wordUpdate = ((fst word)@[st.boardMap[startCoord]], startCoord)
+                let wordUpdate = ((fst word)@[st.boardMap[startCoord]], (direction, startCoord))
                 if fst (Map.find direction (neighborList st.boardMap startCoord)) then
                                 let newCoord = Map.find direction (neighborList st.boardMap startCoord) |> snd
                                 buildExistingWordFromCoordReal newCoord st direction wordUpdate
@@ -189,7 +188,7 @@ module Bot =
         | n ->  word
     
     
-    let buildExistingWordFromCoord (startCoord: coord) (st: State.state) (direction: originDirection) = buildExistingWordFromCoordReal startCoord st direction (List.Empty, coord(0,0))
+    let buildExistingWordFromCoord (startCoord: coord) (st: State.state) (direction: originDirection) = buildExistingWordFromCoordReal startCoord st direction (List.Empty, (direction, coord(0,0)))
         
     
     // Using buildWordFromExistingCoord, this function goes through our boardmap, calling that function on each letter that is the starting letter of a word
@@ -214,6 +213,12 @@ module Bot =
                     | false -> acc
                                                 ) List.Empty st.boardMap
     
+    // Goes through each possible starting letter, and generates a word (the best word) with coords using wordWithPlacements for each of them 
+    let wordToEachStartingLetter (st: State.state) = List.fold (fun acc elem -> (wordWithPlacementsFromStartLetter elem st) :: acc) List.Empty (getPossibleStartingLetters st)
+    
+    // Same but with words
+    let wordToEachStartingWord (st: State.state) = List.fold (fun acc elem ->(wordWithPlacementsFromStartWord elem st) :: acc ) List.Empty (findAllWordsOnBoard st)
+    
     // Checks if the new word has neighbors true if it does not
     let checkWordNeighbor (placementList: (coord*char) list) (st: State.state) =
         List.fold (fun (boolAcc, countAcc) value ->
@@ -227,7 +232,7 @@ module Bot =
             ) (true, 0) placementList       
    
     // Takes the longest word from wordToEachStartingLetter 
-    let bestWord (st : State.state) = List.fold (fun acc elem -> if (snd elem) > List.length acc && (fst (checkWordNeighbor (fst elem) st)) then fst elem else acc) List.Empty (wordToEachStartingLetter st)
+    let bestWord (st : State.state) = List.fold (fun acc elem -> if (snd elem) > List.length acc && (fst (checkWordNeighbor (fst elem) st)) then fst elem else acc) List.Empty ((wordToEachStartingLetter st)@(wordToEachStartingWord st))
     
     // Takes the longest word in findWord
     let bestWordNoStart (st : State.state) = List.fold (fun (accList, accNr) elem -> (coord(accNr,0) ,elem) :: accList, accNr+1 ) (List.Empty,0) (findWord st)
