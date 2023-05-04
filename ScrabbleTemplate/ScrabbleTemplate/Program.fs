@@ -54,7 +54,7 @@ module Program
         // Uncomment this line to call your client
         let (dictionary, time) =
             time (fun () -> ScrabbleUtil.Dictionary.mkDict words dictAPI)
-        let players    = [("Your name here", dictionary, ScrapBot.Scrabble.startGame)]
+        let players    = [("ScrapBot", dictionary, ScrapBot.Scrabble.startGame); ("CoolGamer", dictionary, ScrapBot.Scrabble.startGame)]
 
         //let players = spawnMultiples "OxyphenButazone" dictionary Oxyphenbutazone.Scrabble.startGame 2
 
