@@ -5,7 +5,7 @@ open System.Diagnostics
 open Microsoft.FSharp.Collections
 open ScrabbleUtil
 open ScrabbleUtil.ServerCommunication
-
+open System.Threading.Tasks
 open System.IO
 
 open ScrabbleUtil.DebugPrint
@@ -220,11 +220,14 @@ module Bot =
                                                 ) List.Empty st.boardMap
     
     // Goes through each possible starting letter, and generates a word (the best word) with coords using wordWithPlacements for each of them 
-    let wordToEachStartingLetter (st: State.state) = List.fold (fun acc elem -> (wordWithPlacementsFromStartLetter elem st) :: acc) List.Empty (getPossibleStartingLetters st)
-    
+    let wordToEachStartingLetter (st: State.state) = (List.fold (fun acc elem -> (async {return wordWithPlacementsFromStartLetter elem st}) :: acc) List.Empty (getPossibleStartingLetters st))
+                                                     |> Async.Parallel |> Async.RunSynchronously |> Array.toList
     // Same but with words
-    let wordToEachStartingWord (st: State.state) = List.fold (fun acc elem ->(wordWithPlacementsFromStartWord elem st) :: acc ) List.Empty (findAllWordsOnBoard st)
-    
+    let wordToEachStartingWord (st: State.state) =
+        (List.fold (fun acc elem ->(async {return wordWithPlacementsFromStartWord elem st}) :: acc ) List.Empty (findAllWordsOnBoard st))
+        |> Async.Parallel |> Async.RunSynchronously |> Array.toList
+        
+  
     // Checks if the new word has neighbors true if it does not
     let checkWordNeighbor (placementList: (coord*char) list) (st: State.state) =
         List.fold (fun (boolAcc, countAcc) value ->
@@ -239,6 +242,7 @@ module Bot =
    
     // Takes the longest word from wordToEachStartingLetter 
     let bestWord (st : State.state) = List.fold (fun acc elem -> if (snd elem) > List.length acc && (fst (checkWordNeighbor (fst elem) st)) then fst elem else acc) List.Empty ((wordToEachStartingLetter st)@(wordToEachStartingWord st))
+    
     
     // Takes the longest word in findWord
     let bestWordNoStart (st : State.state) = List.fold (fun (accList, accNr) elem -> (coord(accNr, 0) ,elem) :: accList, accNr+1 ) (List.Empty,0) (findWord st)
