@@ -240,8 +240,15 @@ module Bot =
                    else (boolAcc, countAcc+1)
             ) (true, 0) placementList       
    
+    
+    let getAsyncWordlist (st: State.state) =
+        let wordsFromLetters = async {return wordToEachStartingLetter st}
+        let wordsFromWords = async {return wordToEachStartingWord st}
+        let wordList = Async.Parallel [wordsFromLetters;wordsFromWords] |> Async.RunSynchronously |> List.concat
+        wordList
+        
     // Takes the longest word from wordToEachStartingLetter 
-    let bestWord (st : State.state) = List.fold (fun acc elem -> if (snd elem) > List.length acc && (fst (checkWordNeighbor (fst elem) st)) then fst elem else acc) List.Empty ((wordToEachStartingLetter st)@(wordToEachStartingWord st))
+    let bestWord (st : State.state) = List.fold (fun acc elem -> if (snd elem) > List.length acc && (fst (checkWordNeighbor (fst elem) st)) then fst elem else acc) List.Empty (getAsyncWordlist st)
     
     
     // Takes the longest word in findWord
