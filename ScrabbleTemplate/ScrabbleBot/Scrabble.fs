@@ -55,9 +55,10 @@ module State =
         boardMap      : Map<coord, char>
         playerAmount  : uint32
         currentPlayer : uint32
+        playerInGame : Map<uint32, bool>
     }
 
-    let mkState b d pn h m pa cp = {board = b; dict = d;  playerNumber = pn; hand = h; boardMap = m; playerAmount = pa; currentPlayer = cp }
+    let mkState b d pn h m pa cp pg = {board = b; dict = d;  playerNumber = pn; hand = h; boardMap = m; playerAmount = pa; currentPlayer = cp; playerInGame = pg}
 
     let board st         = st.board
     let dict st          = st.dict
@@ -66,7 +67,7 @@ module State =
     let boardMap st      = st.boardMap
     let playerAmount st  = st.playerAmount
     let currentPlayer st = st.currentPlayer
-    
+    let playerInGame st = st.playerInGame
 
 
 module Bot =
@@ -119,11 +120,11 @@ module Bot =
             | None -> (word, wordListAcc)
             | Some (false, dict) ->
                 let wordAcc1 = wordAcc@[Util.IdToChar e]
-                (wordAcc, snd (findWordReal (State.mkState st.board dict st.playerNumber (MultiSet.removeSingle e st.hand) st.boardMap st.playerAmount st.currentPlayer) wordAcc1 wordListAcc)) 
+                (wordAcc, snd (findWordReal (State.mkState st.board dict st.playerNumber (MultiSet.removeSingle e st.hand) st.boardMap st.playerAmount st.currentPlayer st.playerInGame) wordAcc1 wordListAcc)) 
             | Some (true, dict) ->
                 let wordAcc1 = wordAcc@[Util.IdToChar e]
                 let wordListAcc1 = (wordAcc1 :: wordListAcc)
-                (wordAcc, (snd (findWordReal (State.mkState st.board dict st.playerNumber (MultiSet.removeSingle e st.hand) st.boardMap st.playerAmount st.currentPlayer) wordAcc1 wordListAcc1)))
+                (wordAcc, (snd (findWordReal (State.mkState st.board dict st.playerNumber (MultiSet.removeSingle e st.hand) st.boardMap st.playerAmount st.currentPlayer st.playerInGame) wordAcc1 wordListAcc1)))
         ) (word, wordList) st.hand
    
     // Takes a list of words, and returns the longest
@@ -134,7 +135,7 @@ module Bot =
     
     // Uses findWord and getInitialDict, to get a word using the given word as its start. 
     let findWordFromExisting (st: State.state) (word: char list) =
-         (findWord (State.mkState st.board (getInitialDict st word) st.playerNumber st.hand st.boardMap st.playerAmount st.currentPlayer))
+         (findWord (State.mkState st.board (getInitialDict st word) st.playerNumber st.hand st.boardMap st.playerAmount st.currentPlayer st.playerInGame))
         
          
     // Uses the starting letter and a direction to return a coord i in that direction
@@ -263,7 +264,15 @@ module Scrabble =
     let playGame cstream pieces (st : State.state) = 
         let rec aux (st : State.state) =
             //debugPrint (sprintf "Me =%d My turn?%A" st.playerNumber (((st.currentPlayer%st.playerAmount)+1u)= st.playerNumber))
-            let myTurn = if Map.isEmpty st.boardMap then (st.currentPlayer = st.playerNumber) else (((st.currentPlayer%st.playerAmount)+1u) = st.playerNumber)
+            
+            let rec playerWithTurnReal (i : uint32) =
+                match Map.find (((st.currentPlayer+i)%st.playerAmount)+1u) st.playerInGame with
+                | true -> (((st.currentPlayer+i)%st.playerAmount)+1u)
+                | false -> playerWithTurnReal (i+1u)
+            
+            let playerWithTurn = playerWithTurnReal 0u
+            
+            let myTurn = if Map.isEmpty st.boardMap then (st.currentPlayer = st.playerNumber) else (playerWithTurn = st.playerNumber)
             if myTurn then
                 Print.printHand pieces (State.hand st)
                 //debugPrint (sprintf "PLAYER THAT STARTS = %A" st.currentPlayer)
@@ -308,18 +317,18 @@ module Scrabble =
                     List.fold (fun acc value -> MultiSet.removeSingle (snd value |> fst) acc) st.hand letters
                 let addAndRemoveFromHand (a : (uint32*uint32) list) (b : State.state) (letters: (coord * (uint32 * (char*int))) list) = a |> List.fold (fun acc value -> MultiSet.add (fst value) (snd value) acc) (removeFromHand letters b)
                 let addToMap (a : (coord * (uint32 * (char * int))) list) (b : State.state) = List.fold (fun acc value -> Map.add (fst value) (snd value |> snd |> fst) acc) b.boardMap a
-                let st' = State.mkState st.board st.dict st.playerNumber (addAndRemoveFromHand newPieces st ms) (addToMap ms st) st.playerAmount st.playerNumber // This state needs to be update
+                let st' = State.mkState st.board st.dict st.playerNumber (addAndRemoveFromHand newPieces st ms) (addToMap ms st) st.playerAmount st.playerNumber st.playerInGame // This state needs to be update
                 debugPrint(sprintf "Me : %A" st.playerNumber)
                 debugPrint(sprintf "currentPlayer: %A" st.currentPlayer)
                 aux st'
             | RCM (CMPlayed (pid, ms, points)) ->
                 (* Successful play by other player. Update your state *)
                 let addToMap (a : (coord * (uint32 * (char * int))) list) (b : State.state) = List.fold (fun acc value -> Map.add (fst value) (snd value |> snd |> fst) acc) b.boardMap a
-                let st' = State.mkState st.board st.dict st.playerNumber st.hand (addToMap ms st) st.playerAmount pid // This state needs to be update
+                let st' = State.mkState st.board st.dict st.playerNumber st.hand (addToMap ms st) st.playerAmount pid st.playerInGame // This state needs to be update
                 aux st'
             | RCM (CMPlayFailed (pid, ms)) ->
                 (* Failed play. Update your state *)
-                let st' = State.mkState st.board st.dict st.playerNumber st.hand st.boardMap st.playerAmount pid // This state needs to be updated
+                let st' = State.mkState st.board st.dict st.playerNumber st.hand st.boardMap st.playerAmount pid st.playerInGame // This state needs to be updated
                 aux st'
             | RCM (CMChangeSuccess newPieces) ->
                  let piecesLeft = 104 - ((Map.count st.boardMap) + ((int32(MultiSet.size st.hand)) + (7*(int32(st.playerAmount)-1))))
@@ -328,13 +337,20 @@ module Scrabble =
                  let removeLettersToChangeFromHand (listOfRemovers : uint32 list) = MultiSet.fold (fun acc key elem -> if (List.contains key listOfRemovers) then MultiSet.removeSingle key acc else acc) st.hand st.hand
 
                  let addAndRemoveFromHand (lettersToAdd: (uint32*uint32) list) (b : State.state) (removeLetters: uint32 list) = lettersToAdd |> List.fold (fun acc value -> MultiSet.add (fst value) (snd value) acc) (removeLettersToChangeFromHand removeLetters)
-                 let st' = State.mkState st.board st.dict st.playerNumber (addAndRemoveFromHand newPieces st (listToChange)) st.boardMap st.playerAmount st.playerNumber // This state needs to be update
+                 let st' = State.mkState st.board st.dict st.playerNumber (addAndRemoveFromHand newPieces st (listToChange)) st.boardMap st.playerAmount st.playerNumber st.playerInGame // This state needs to be update
                  aux st'
             | RCM (CMChange (pid, numberOfTiles)) ->
-                let st' = State.mkState st.board st.dict st.playerNumber st.hand st.boardMap st.playerAmount pid
+                let st' = State.mkState st.board st.dict st.playerNumber st.hand st.boardMap st.playerAmount pid st.playerInGame
                 aux st'
             | RCM (CMPassed pid) ->
-                let st' = State.mkState st.board st.dict st.playerNumber st.hand st.boardMap st.playerAmount pid
+                let st' = State.mkState st.board st.dict st.playerNumber st.hand st.boardMap st.playerAmount pid st.playerInGame
+                aux st'
+            | RCM (CMForfeit pid) ->
+                let updatePlayerInGame pid (st: State.state) = Map.add pid false st.playerInGame
+                let st' = State.mkState st.board st.dict st.playerNumber st.hand st.boardMap st.playerAmount pid (updatePlayerInGame pid st)
+                aux st'
+            | RCM (CMTimeout pid) ->
+                let st' = State.mkState st.board st.dict st.playerNumber st.hand st.boardMap st.playerAmount pid st.playerInGame
                 aux st'
             | RCM (CMGameOver _) -> ()
             | RCM a -> failwith (sprintf "not implmented: %A" a)
@@ -367,6 +383,10 @@ module Scrabble =
                   
         let handSet = List.fold (fun acc (x, k) -> MultiSet.add x k acc) MultiSet.empty hand
        
+        let rec playersInGame (map : Map<uint32,bool>) (amount : uint32)=
+            match amount with
+            | 1u -> Map.add amount true map
+            | n -> playersInGame (Map.add amount true map) (n-1u)
         
         //let customHand = [(9u, 1u); (18u, 1u); (1u, 1u)]
 
@@ -375,5 +395,5 @@ module Scrabble =
         //debugPrint (sprintf "words = %A" (snd (Bot.findWordReal (State.mkState board dict playerNumber handSet Map.empty) List.Empty List.Empty)))
 
         //debugPrint (sprintf "PLAYER THAT STARTS = %A" playerTurn)
-        fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet Map.empty numPlayers playerTurn)
+        fun () -> playGame cstream tiles (State.mkState board dict playerNumber handSet Map.empty numPlayers playerTurn (playersInGame Map.empty numPlayers))
     
