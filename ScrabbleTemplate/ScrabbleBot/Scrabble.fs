@@ -206,19 +206,19 @@ module Bot =
             |true -> acc
             |false ->
                 match fst (Map.find originDirection.down (neighborList st.boardMap key)) with
-                | true -> (buildExistingWordFromCoord key st originDirection.down) :: acc
+                | true -> (async {return buildExistingWordFromCoord key st originDirection.down}) :: acc
                 | false -> acc
         | false ->
             match fst (Map.find originDirection.right (neighborList st.boardMap key)) with
-            |true -> (buildExistingWordFromCoord key st originDirection.right)::acc
+            |true -> (async {return buildExistingWordFromCoord key st originDirection.right})::acc
             |false ->
                 match fst (Map.find originDirection.up (neighborList st.boardMap key)) with
                 |true -> acc
                 |false ->
                     match fst (Map.find originDirection.down (neighborList st.boardMap key)) with
-                    | true -> (buildExistingWordFromCoord key st originDirection.down) :: acc
+                    | true -> (async {return buildExistingWordFromCoord key st originDirection.down}) :: acc
                     | false -> acc
-                                                ) List.Empty st.boardMap
+                                                ) List.Empty st.boardMap |> Async.Parallel |> Async.RunSynchronously |> Array.toList
     
     // Goes through each possible starting letter, and generates a word (the best word) with coords using wordWithPlacements for each of them 
     let wordToEachStartingLetter (st: State.state) = (List.fold (fun acc elem -> (async {return wordWithPlacementsFromStartLetter elem st}) :: acc) List.Empty (getPossibleStartingLetters st))
